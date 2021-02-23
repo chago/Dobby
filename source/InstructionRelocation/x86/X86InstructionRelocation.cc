@@ -1,7 +1,7 @@
 #include "common/macros/platform_macro.h"
 #if defined(TARGET_ARCH_IA32)
 
-#include "./X86InstructionRelocation.h"
+#include "InstructionRelocation/x86//X86InstructionRelocation.h"
 
 #include <string.h>
 
@@ -18,7 +18,7 @@ using namespace zz::x86;
 static int GenRelocateCodeFixed(void *buffer, AssemblyCodeChunk *origin, AssemblyCodeChunk *relocated) {
   TurboAssembler turbo_assembler_(0);
   // Set fixed executable code chunk address
-  turbo_assembler_.CommitRealizeAddress((void *)relocated->raw_instruction_start());
+  turbo_assembler_.SetRealizedAddress((void *)relocated->raw_instruction_start());
 #define _  turbo_assembler_.
 #define __ turbo_assembler_.GetCodeBuffer()->
 
@@ -116,7 +116,7 @@ static int GenRelocateCodeFixed(void *buffer, AssemblyCodeChunk *origin, Assembl
   return RT_SUCCESS;
 }
 
-void GenRelocateCode(void *buffer, AssemblyCodeChunk *origin, AssemblyCodeChunk *relocated) {
+void GenRelocateCodeAndBranch(void *buffer, AssemblyCodeChunk *origin, AssemblyCodeChunk *relocated) {
   // pre-alloc code chunk
   AssemblyCodeChunk *cchunk = NULL;
 

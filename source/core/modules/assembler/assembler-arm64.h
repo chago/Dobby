@@ -7,7 +7,7 @@
 #include "core/arch/arm64/registers-arm64.h"
 #include "core/modules/assembler/assembler.h"
 
-#include "CodeBuffer/code-buffer-arm64.h"
+#include "MemoryAllocator/CodeBuffer/code-buffer-arm64.h"
 
 #include "xnucxx/LiteMutableArray.h"
 #include "xnucxx/LiteIterator.h"
@@ -54,8 +54,7 @@ public:
   } PseudoLabelInstruction;
 
 public:
-  PseudoLabel(void) {
-    instructions_.initWithCapacity(8);
+  PseudoLabel(void) : instructions_(8) {
   }
   ~PseudoLabel(void) {
     for (size_t i = 0; i < instructions_.getCount(); i++) {
@@ -370,12 +369,13 @@ public:
   ~Assembler() {
     if (buffer_)
       delete buffer_;
+    buffer_ = NULL;
   }
 
 public:
-  void CommitRealizeAddress(void *address) {
+  void SetRealizedAddress(void *address) {
     DCHECK_EQ(0, reinterpret_cast<uint64_t>(address) % 4);
-    AssemblerBase::CommitRealizeAddress(address);
+    AssemblerBase::SetRealizedAddress(address);
   }
 
   void Emit(int32_t value);
@@ -609,6 +609,17 @@ class TurboAssembler : public Assembler {
 public:
   TurboAssembler(void *address) : Assembler(address) {
     data_labels_ = NULL;
+  }
+
+  ~TurboAssembler() {
+    if (data_labels_) {
+      for (size_t i = 0; i < data_labels_->getCount(); i++) {
+        RelocLabelEntry *label = (RelocLabelEntry *)data_labels_->getObject(i);
+        delete label;
+      }
+
+      delete data_labels_;
+    }
   }
 
   void CallFunction(ExternalReference function) {

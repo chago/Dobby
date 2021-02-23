@@ -7,7 +7,7 @@
 #include "core/arch/arm/registers-arm.h"
 #include "core/modules/assembler/assembler.h"
 
-#include "CodeBuffer/code-buffer-arm.h"
+#include "MemoryAllocator/CodeBuffer/code-buffer-arm.h"
 
 #include "xnucxx/LiteMutableArray.h"
 #include "xnucxx/LiteIterator.h"
@@ -50,8 +50,7 @@ public:
   } PseudoLabelInstruction;
 
 public:
-  PseudoLabel(void) {
-    instructions_.initWithCapacity(8);
+  PseudoLabel(void) : instructions_(8) {
   }
 
   ~PseudoLabel(void) {
@@ -289,11 +288,6 @@ public:
     buffer_        = buffer;
   }
 
-  ~Assembler() {
-    if (buffer_)
-      delete buffer_;
-  }
-
   void ClearCodeBuffer() {
     buffer_ = NULL;
   }
@@ -306,9 +300,9 @@ public:
     return execute_state_;
   }
 
-  void CommitRealizeAddress(void *address) {
+  void SetRealizedAddress(void *address) {
     DCHECK_EQ(0, reinterpret_cast<uint64_t>(address) % 4);
-    AssemblerBase::CommitRealizeAddress(address);
+    AssemblerBase::SetRealizedAddress(address);
   }
 
   void EmitARMInst(arm_inst_t instr);
@@ -408,6 +402,17 @@ class TurboAssembler : public Assembler {
 public:
   TurboAssembler(void *address) : Assembler(address) {
     data_labels_ = NULL;
+  }
+
+  ~TurboAssembler() {
+    if (data_labels_) {
+      for (size_t i = 0; i < data_labels_->getCount(); i++) {
+        RelocLabelEntry *label = (RelocLabelEntry *)data_labels_->getObject(i);
+        delete label;
+      }
+
+      delete data_labels_;
+    }
   }
 
   TurboAssembler(void *address, CodeBuffer *buffer) : Assembler(address, buffer) {

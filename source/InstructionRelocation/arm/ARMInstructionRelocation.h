@@ -82,7 +82,7 @@ public:
 class ThumbRelocLabelEntry : public ThumbPseudoLabel {
 public:
   explicit ThumbRelocLabelEntry(uint32_t data, bool used_for_branch)
-      : data_size_(0) , used_for_branch_(used_for_branch) {
+      : data_size_(0), used_for_branch_(used_for_branch) {
     data_ = data;
   }
 
@@ -170,8 +170,8 @@ private:
 #if 0
     // literal ldr, base = ALIGN(pc, 4)
     if (rt.Is(pc)) {
-      // TODO: convert to `GetRealizeAddress()` ???
-      addr_t curr_pc = pc_offset() + (addr_t)GetRealizeAddress();
+      // TODO: convert to `GetRealizedAddress()` ???
+      addr_t curr_pc = pc_offset() + (addr_t)GetRealizedAddress();
       if (curr_pc % 4) {
         t1_nop();
       }
@@ -259,6 +259,17 @@ public:
     data_labels_ = NULL;
   }
 
+  ~ThumbTurboAssembler() {
+    if (data_labels_) {
+      for (size_t i = 0; i < data_labels_->getCount(); i++) {
+        RelocLabelEntry *label = (RelocLabelEntry *)data_labels_->getObject(i);
+        delete label;
+      }
+
+      delete data_labels_;
+    }
+  }
+
   void T1_Ldr(Register rt, ThumbPseudoLabel *label) {
     UNREACHABLE();
 
@@ -288,7 +299,7 @@ public:
   }
 
   void AlignThumbNop() {
-    addr32_t pc = this->GetCodeBuffer()->getSize() + (addr32_t)GetRealizeAddress();
+    addr32_t pc = this->GetCodeBuffer()->getSize() + (addr32_t)GetRealizedAddress();
     if (pc % Thumb2_INST_LEN) {
       t1_nop();
     } else {
@@ -340,7 +351,7 @@ private:
 };
 
 // Generate the relocated instruction
-void GenRelocateCode(void *buffer, AssemblyCodeChunk *origin, AssemblyCodeChunk *relocated);
+void GenRelocateCodeAndBranch(void *buffer, AssemblyCodeChunk *origin, AssemblyCodeChunk *relocated);
 
 } // namespace arm
 } // namespace zz

@@ -1,11 +1,12 @@
 #include "PlatformUtil/ProcessRuntimeUtility.h"
 
 #include <elf.h>
-#include <jni.h>
-#include <string>
 #include <dlfcn.h>
 #include <link.h>
 #include <sys/mman.h>
+
+#include <string>
+#include <string.h>
 
 #include <vector>
 
@@ -41,8 +42,7 @@ std::vector<MemoryRegion> ProcessRuntimeUtility::GetProcessMemoryLayout() {
         break;
     }
 
-    addr_t  region_start;
-    addr_t  region_end;
+    addr_t  region_start, region_end;
     addr_t  region_offset;
     char    permissions[5] = {'\0'}; // Ensure NUL-terminated string.
     uint8_t dev_major      = 0;
@@ -117,8 +117,7 @@ static std::vector<RuntimeModule> get_process_map_with_proc_maps() {
         break;
     }
 
-    addr_t  region_start;
-    addr_t  region_end;
+    addr_t  region_start, region_end;
     addr_t  region_offset;
     char    permissions[5] = {'\0'}; // Ensure NUL-terminated string.
     uint8_t dev_major      = 0;
@@ -154,29 +153,52 @@ static std::vector<RuntimeModule> get_process_map_with_proc_maps() {
       continue;
     }
 
+    char *path_buffer = line_buffer + path_index;
+    if (*path_buffer == 0 || *path_buffer == '\n' || *path_buffer == '[')
+      continue;
     RuntimeModule module;
-    strncpy(module.path, line_buffer + path_index, 1024 - 1);
-    if (module.path[strlen(module.path) - 1] == '\n') {
-      module.path[strlen(module.path) - 1] = 0;
+
+    // strip
+    if (path_buffer[strlen(path_buffer) - 1] == '\n') {
+      path_buffer[strlen(path_buffer) - 1] = 0;
     }
+    strncpy(module.path, path_buffer, sizeof(module.path));
     module.load_address = (void *)region_start;
     ProcessModuleMap.push_back(module);
+
+#if 0
+    DLOG(0, "module: %s", module.path);
+#endif
   }
 
   fclose(fp);
   return ProcessModuleMap;
 }
 
-#if defined(__ANDROID__) && defined(__LP64__)
+#if defined(__LP64__)
 static std::vector<RuntimeModule> get_process_map_with_linker_iterator() {
   std::vector<RuntimeModule> ProcessModuleMap;
 
-  dl_iterate_phdr(
+  static int (*dl_iterate_phdr_ptr)(int (*)(struct dl_phdr_info *, size_t, void *), void *);
+  dl_iterate_phdr_ptr = (__typeof(dl_iterate_phdr_ptr))dlsym(RTLD_DEFAULT, "dl_iterate_phdr");
+  if (dl_iterate_phdr_ptr == NULL) {
+    return ProcessModuleMap;
+  }
+
+  dl_iterate_phdr_ptr(
       [](dl_phdr_info *info, size_t size, void *data) {
         RuntimeModule module = {0};
         if (info->dlpi_name && info->dlpi_name[0] == '/')
           strcpy(module.path, info->dlpi_name);
+
         module.load_address = (void *)info->dlpi_addr;
+        for (size_t i = 0; i < info->dlpi_phnum; ++i) {
+          if (info->dlpi_phdr[i].p_type == PT_LOAD) {
+            uintptr_t load_bias = (info->dlpi_phdr[i].p_vaddr - info->dlpi_phdr[i].p_offset);
+            module.load_address = (void *)((addr_t)module.load_address + load_bias);
+            break;
+          }
+        }
 
         // push to vector
         auto ProcessModuleMap = reinterpret_cast<std::vector<RuntimeModule> *>(data);
@@ -191,6 +213,7 @@ static std::vector<RuntimeModule> get_process_map_with_linker_iterator() {
 
 std::vector<RuntimeModule> ProcessRuntimeUtility::GetProcessModuleMap() {
 #if defined(__LP64__) && 0
+  // TODO: won't resolve main binary
   return get_process_map_with_linker_iterator();
 #else
   return get_process_map_with_proc_maps();

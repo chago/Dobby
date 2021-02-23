@@ -1,14 +1,15 @@
-#include "RegisterPlugin.h"
+#include "InterceptRouting/ExtraInternalPlugin/RegisterPlugin.h"
 
-LiteMutableArray *ExtraInternalPlugin::plugins_ = NULL;
+LiteMutableArray *ExtraInternalPlugin::plugins;
 
 ExtraInternalPlugin *ExtraInternalPlugin::near_branch_trampoline = NULL;
 
 void ExtraInternalPlugin::registerPlugin(const char *name, ExtraInternalPlugin *plugin) {
-  if (!plugins_) {
-    plugins_ = new LiteMutableArray;
+  DLOG(1, "register %s plugin", name);
+
+  if (ExtraInternalPlugin::plugins == NULL) {
+    ExtraInternalPlugin::plugins = new LiteMutableArray(8);
   }
 
-  ExtraInternalPlugin::plugins_->pushObject(reinterpret_cast<LiteObject *>(plugin));
-  return;
+  ExtraInternalPlugin::plugins->pushObject(reinterpret_cast<LiteObject *>(plugin));
 }

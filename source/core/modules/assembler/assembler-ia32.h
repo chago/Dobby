@@ -6,7 +6,7 @@
 #include "core/arch/x86/registers-x86.h"
 #include "core/modules/assembler/assembler.h"
 
-#include "CodeBuffer/code-buffer-x86.h"
+#include "MemoryAllocator/CodeBuffer/code-buffer-x86.h"
 
 #include "xnucxx/LiteMutableArray.h"
 #include "xnucxx/LiteIterator.h"
@@ -31,8 +31,7 @@ public:
   } PseudoLabelInstruction;
 
 public:
-  PseudoLabel(void) {
-    instructions_.initWithCapacity(8);
+  PseudoLabel(void) : instructions_(8) {
   }
   ~PseudoLabel(void) {
     for (size_t i = 0; i < instructions_.getCount(); i++) {
@@ -321,6 +320,7 @@ public:
   ~Assembler() {
     if (buffer_)
       delete buffer_;
+    buffer_ = NULL;
   }
 
 public:
@@ -522,6 +522,17 @@ class TurboAssembler : public Assembler {
 public:
   TurboAssembler(void *address) : Assembler(address) {
     data_labels_ = NULL;
+  }
+
+  ~TurboAssembler() {
+    if (data_labels_) {
+      for (size_t i = 0; i < data_labels_->getCount(); i++) {
+        RelocLabelEntry *label = (RelocLabelEntry *)data_labels_->getObject(i);
+        delete label;
+      }
+
+      delete data_labels_;
+    }
   }
 
   addr32_t CurrentIP();

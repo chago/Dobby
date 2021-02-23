@@ -1,5 +1,5 @@
-#ifndef BXXX_BRANCH_TRAMPOLINE_H
-#define BXXX_BRANCH_TRAMPOLINE_H
+#ifndef PLUGIN_NEAR_BRANCH_TRAMPOLINE_H
+#define PLUGIN_NEAR_BRANCH_TRAMPOLINE_H
 
 #include "dobby_internal.h"
 
@@ -15,7 +15,6 @@ class NearBranchTrampolinePlugin : public RoutingPlugin {
 
   bool GenerateTrampolineBuffer(InterceptRouting *routing, void *src, void *dst);
 
-  int PredefinedTrampolineSize();
 };
 
 #endif

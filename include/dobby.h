@@ -15,6 +15,17 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+typedef enum {
+  kMemoryOperationSuccess,
+  kMemoryOperationError,
+  kNotSupportAllocateExecutableMemory,
+  kNotEnough,
+  kNone
+} MemoryOperationError;
+
+#define PLATFORM_INTERFACE_CODE_PATCH_TOOL_H
+MemoryOperationError CodePatch(void *address, uint8_t *buffer, uint32_t buffer_size);
+
 typedef uintptr_t addr_t;
 typedef uint32_t  addr32_t;
 typedef uint64_t  addr64_t;
@@ -118,15 +129,8 @@ typedef struct _RegisterContext {
 #define RT_SUCCESS 0
 typedef enum _RetStatus { RS_FAILED = -1, RS_SUCCESS = 0 } RetStatus;
 
-typedef enum _PackageType {
-  kFunctionWrapper,
-  kFunctionInlineHook,
-  kDynamicBinaryInstrument
-} PackageType,
-    HookEntryType;
-
 typedef struct _HookEntryInfo {
-  uintptr_t hook_id;
+  int hook_id;
   union {
     void *target_address;
     void *function_address;
@@ -160,16 +164,15 @@ int DobbyDestroy(void *address);
 // iterate symbol table and find symbol
 void *DobbySymbolResolver(const char *image_name, const char *symbol_name);
 
-// near branch plugin
+// global offset table
+int DobbyGlobalOffsetTableReplace(char *image_name, char *symbol_name, void *fake_func, void **orig_func);
+
 // [!!! READ ME !!!]
 // for arm, Arm64, dobby will use b xxx instead of ldr absolute indirect branch
 // for x64, dobby always use absolute indirect jump
 #if defined(__arm__) || defined(__arm64__) || defined(__aarch64__) || defined(_M_X64) || defined(__x86_64__)
-
 void dobby_enable_near_branch_trampoline();
-
 void dobby_disable_near_branch_trampoline();
-
 #endif
 
 // register linker load image callback

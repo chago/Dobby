@@ -1,7 +1,7 @@
 #ifndef CORE_ASSEMBLER_H
 #define CORE_ASSEMBLER_H
 
-#include "MemoryKit/CodeBuffer/CodeBufferBase.h"
+#include "MemoryAllocator/CodeBuffer/CodeBufferBase.h"
 
 class CodeBuffer;
 
@@ -10,9 +10,6 @@ namespace zz {
 class Label {
 public:
   Label() : pos_(0), near_link_pos_(0) {
-  }
-
-  ~Label() {
   }
 
 public:
@@ -37,21 +34,14 @@ private:
   int near_link_pos_;
 };
 
-#if 0
-class LiteObjectPool {
-public:
-  intptr_t AddObject(const LiteObject &obj);
-
-  intptr_t FindObject(const LiteObject &obj);
-
-private:
-  std::vector<LiteObject *> object_pool_;
-};
-#endif
-
 class ExternalReference {
 public:
   explicit ExternalReference(void *address) : address_(address) {
+#if __APPLE__
+#if __has_feature(ptrauth_calls)
+    address_ = __builtin_ptrauth_strip(address, ptrauth_key_asia);
+#endif
+#endif
   }
 
   const void *address();
@@ -62,26 +52,31 @@ private:
 
 class AssemblerBase {
 public:
-  AssemblerBase(void *address);
+  explicit AssemblerBase(void *address);
 
-public:
+  ~AssemblerBase();
+
+  // === IP / PC register ===
+
   int ip_offset() const;
 
   int pc_offset() const;
 
+  // === CodeBuffer ===
+
   CodeBuffer *GetCodeBuffer();
 
-  virtual void CommitRealizeAddress(void *address);
+  // === Realized Address ===
 
-  virtual void *GetRealizeAddress();
+  virtual void *GetRealizedAddress();
+
+  virtual void SetRealizedAddress(void *address);
+
+  // === CPU Cache ===
 
   static void FlushICache(addr_t start, int size);
 
   static void FlushICache(addr_t start, addr_t end);
-
-private:
-  AssemblerBase() {
-  }
 
 protected:
   CodeBuffer *buffer_;
